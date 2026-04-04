@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright 2020 The Android Open Source Project
+
+  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+  in compliance with the License. You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software distributed under the License
+  is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+  or implied. See the License for the specific language governing permissions and limitations under
+  the License.
+  -->
+<resources>
+    <string name="app_name">Trip Advisor</string>
+    <string name="cd_open_navigation_drawer">Exibir menu</string>
+
+
+    <!-- Inicio -->
+    <string name="home_title">Início</string>
+    <string name="home_bemvindo">Bem-vindo ao Trip Advisor!</string>
+    <string name="home_contato">Contato para suporte:</string>
+    <string name="home_contato_email">gtorettidevimoveis@gmail.com</string>
+
+
+
+
+
+    <!-- Hospedagem -->
+    <string name="hospedagem_title">Hospedagem</string>
+
+
+
+
+
+    <!-- Gastronomia -->
+    <string name="gastronomia_title">Gastronomia</string>
+
+
+
+
+    <!-- Compras -->
+    <string name="compras_title">Compras</string>
+
+
+
+
+
+
+    <!-- Lazer -->
+    <string name="lazer_title">Lazer</string>
+
+
+
+
+
+    <!-- Cultura -->
+    <string name="cultura_title">Cultura</string>
+
+
+
+
+
+</resources>
