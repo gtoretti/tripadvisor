@@ -144,7 +144,7 @@ fun HomeScreen(
     snackbarHostState: SnackbarHostState,
 ) {
 
-
+    //exibe menu superior e título da página (Início).
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -175,6 +175,7 @@ fun HomeScreen(
         },
     ) { innerPadding ->
         val screenModifier = Modifier.padding(innerPadding)
+        // exibe conteúdo da página:
         HomeScreenContent(
             screenModifier,
         )
@@ -183,7 +184,6 @@ fun HomeScreen(
 
 /**
  */
-@SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 private fun HomeScreenContent(
     modifier: Modifier = Modifier,
@@ -207,8 +207,6 @@ private fun HomeScreenContent(
             ) {
 
                 // inicio da tela: Cabeçalho
-
-
                 Spacer(Modifier.height(30.dp))
 
                 Text(
@@ -223,7 +221,7 @@ private fun HomeScreenContent(
                 Spacer(Modifier.height(30.dp))
 
                 HorizontalDivider(
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
                 //fim cabeçalho.
 
@@ -335,12 +333,11 @@ fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double)
             fontSize = 15.sp,
         )
     }
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-    )
+
     Spacer(Modifier.height(30.dp))
-
-
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+    )
 
 }
 
