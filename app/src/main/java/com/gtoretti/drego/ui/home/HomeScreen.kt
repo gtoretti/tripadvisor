@@ -17,21 +17,31 @@
 package com.gtoretti.drego.ui.home
 
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.location.Location
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 
 import androidx.compose.foundation.rememberScrollState
 
@@ -40,6 +50,7 @@ import androidx.compose.material3.Button
 
 
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,13 +63,19 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateOf
 
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 
@@ -71,13 +88,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 import com.gtoretti.drego.R
-import com.gtoretti.drego.ui.utils.getLightGreenColor
-import com.gtoretti.drego.ui.utils.getLightRedColor
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.util.ArrayList
 
 import kotlin.Boolean
 
+import coil.compose.AsyncImage
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import java.math.RoundingMode
+import kotlin.toBigDecimal
 
 /**
  * Displays AccountingAccountsHomeScreen.
@@ -151,127 +183,332 @@ fun HomeScreen(
 
 /**
  */
+@SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 private fun HomeScreenContent(
     modifier: Modifier = Modifier,
 ) {
+    val latitudeAtual = remember { mutableDoubleStateOf(0.0) }
+    val longitudeAtual = remember { mutableDoubleStateOf(0.0) }
+    val locais = remember { mutableStateOf<List<Local>>(ArrayList<Local>()) }
+
+    CarregarPosicaoGPSAtualELocais(latitudeAtual,longitudeAtual,locais)
+
     Column(modifier) {
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-        )
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+
+                // inicio da tela: Cabeçalho
+
+
+                Spacer(Modifier.height(30.dp))
+
+                Text(
+                    text = stringResource(R.string.home_bemvindo),
+                    modifier = Modifier,
+                    style = TextStyle(fontFamily = FontFamily.SansSerif),
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Spacer(Modifier.height(30.dp))
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                )
+                //fim cabeçalho.
+
+
+                //inicio exibir lista de locais:
+                Spacer(Modifier.height(30.dp))
+
+                //enquanto estiver carregando posição atual de GPS e buscando lista de locais na nuvem, exibe animação de loading.
+                if (locais.value.isEmpty() || (latitudeAtual.value==0.0 && longitudeAtual.value==0.0)) {
+                    LoadingScreen()
+                } else {
+                    //se ja tiver carregado posição atual de GPS e lista de locais, exibe cada local da lista.
+                    locais.value.forEach { local ->
+                        ExibirCadaLocal(local, latitudeAtual.value, longitudeAtual.value)
+                    }
+                }
+                //fim da lista de locais.
+
+                //inicio rodapé da tela.
+                Spacer(Modifier.height(30.dp))
+
+                DadosParaContato()
+
+                Spacer(Modifier.height(30.dp))
+                // fim da tela
+            }
+        }
+}
+
+
+
+@Composable
+fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double){
+
+    val distancia = calculateDistance(local.latitude,local.longitude,latitudeAtual,longitudeAtual)
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+
+        Text(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth(0.6f),
+            text = local.nome,
+            fontSize = 18.sp,
+            color = Color.Red, // Set text color
+            fontWeight = FontWeight.Bold
+        )
+
+
+        Text(
+            modifier = Modifier,
+            text = distancia.toBigDecimal().setScale(2, RoundingMode.UP).toString().replace(".", ",") + " Km",
+            fontSize = 15.sp,
+        )
+
+        //botao Google Maps
+        val context = LocalContext.current
+        TextButton(
+            modifier = Modifier.padding(5.dp),
+            onClick =
+                {
+                    abrirGoogleMaps(local.nome,context)
+                }
         ) {
-
-            Spacer(Modifier.height(30.dp))
-
-            Text(
-                text = stringResource(R.string.home_bemvindo),
-                modifier = Modifier,
-                style = TextStyle(fontFamily = FontFamily.SansSerif),
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.location_on_24px),
+                contentDescription = "Maps",
+                modifier = Modifier
+                    .padding(2.dp)
+                    .size(20.dp)
             )
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        AsyncImage(
+            model = local.image,
+            contentDescription = local.nome,
+            modifier = Modifier
+                .size(300.dp)
+                .padding(all = 1.dp)
+        )
+    }
 
 
-            Spacer(Modifier.height(30.dp))
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            modifier = Modifier
+                .fillMaxWidth(),
+            text = local.descricao,
+            fontSize = 15.sp,
+        )
+    }
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+    )
+    Spacer(Modifier.height(30.dp))
 
 
 
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-            )
-            Spacer(Modifier.height(30.dp))
-
-
-            Spacer(Modifier.height(30.dp))
+}
 
 
 
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-            )
 
-            Spacer(Modifier.height(30.dp))
+@Composable
+fun DadosParaContato(){
+    val context = LocalContext.current
 
-            Text(
-                text = stringResource(R.string.home_contato),
-                modifier = Modifier,
-                style = TextStyle(fontFamily = FontFamily.SansSerif),
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
-            )
+    Text(
+        text = stringResource(R.string.home_contato),
+        modifier = Modifier,
+        style = TextStyle(fontFamily = FontFamily.SansSerif),
+        color = MaterialTheme.colorScheme.primary,
+        textAlign = TextAlign.Center,
+        fontWeight = FontWeight.Bold,
+    )
+
+    Spacer(Modifier.height(30.dp))
+
+    Button(
+        onClick = {
+            sendMail(context,"gtoretti@yahoo.com","contato app","")
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Enviar e-mail")
+    }
+}
+
+fun sendMail(context: Context,email: String, assunto: String, texto: String){
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:")
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(email))
+        putExtra(Intent.EXTRA_SUBJECT, assunto)
+        putExtra(Intent.EXTRA_TEXT, texto)
+    }
+
+    try {
+        context.startActivity(intent)
+    } catch (ex: ActivityNotFoundException) {
+        Toast.makeText(context, "No email client found", Toast.LENGTH_SHORT).show()
+    }
+}
+
+@Serializable
+data class Local(
+    val latitude: Double,
+    val longitude: Double,
+    val nome: String,
+    val image: String,
+    val descricao: String,
+)
 
 
-            Spacer(Modifier.height(30.dp))
+@Composable
+fun LoadingScreen() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
 
-            val context = LocalContext.current
 
 
-            Button(
-                onClick = {
+suspend fun carregarLocais(permissionLauncher:  ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>) : List<Local> {
+    var lista = ArrayList<Local>()
 
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:") // Ensures only email apps handle this
-                        putExtra(Intent.EXTRA_EMAIL, arrayOf("gtoretti@gmail.com"))
-                        putExtra(Intent.EXTRA_SUBJECT, "contato para reservas")
-                        putExtra(Intent.EXTRA_TEXT, "Olá gostaria de fazer reserva")
-                    }
+    //inicia GPS antes de procurar lista de locais na nuvem.
+    permissionLauncher.launch(
+        arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
 
-                    try {
-                        context.startActivity(intent)
-                    } catch (ex: ActivityNotFoundException) {
-                        Toast.makeText(context, "No email client found", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Enviar e-mail")
+    //procura lista de locais na nuvem.
+    try {
+        val client = HttpClient(CIO) {
+            install(ContentNegotiation) {
+                json() // JSON serialization
             }
+        }
 
-            Spacer(Modifier.height(30.dp))
+        //https://jsonsilo.com/ - usuario: gtorettidevimoveis@gmail.com
+        var uri = "https://api.jsonsilo.com/public/3cfa6160-25a4-4466-8e5e-de350ffecf55"
+
+        val data: String = client.get(uri).body()
+        val json = Json { ignoreUnknownKeys = true }
+        val decoded = json.decodeFromString<List<Local>>(data)
+        lista = ArrayList<Local>(decoded)
+    } catch (e: Exception) {
+        Log.d("getLocals() load error: ",e.message!!)
+    }
+    return lista
+}
 
 
+@SuppressLint("CoroutineCreationDuringComposition")
+@Composable
+fun CarregarPosicaoGPSAtualELocais(latitudeAtual: MutableState<Double>, longitudeAtual: MutableState<Double>, locais: MutableState<List<Local>>){
+    val context = LocalContext.current
+    var fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
-            Button(
-                onClick = {
-
-                    sendWhatsAppMessage(context,"55 19 992815338", "Olá, gostaria de fazer orçamento.")
-
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Enviar mensagem por WhatsApp")
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            getCurrentLocation(fusedLocationClient) { lat, lon ->
+                latitudeAtual.value = lat
+                longitudeAtual.value = lon
             }
+        } else {
+            Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
 
+    val scope = rememberCoroutineScope()
+    scope.launch {
+        locais.value = carregarLocais(permissionLauncher)
+    }
+}
 
+@SuppressLint("MissingPermission") // We check permission before calling
+private fun getCurrentLocation(
+    fusedLocationClient: FusedLocationProviderClient,
+    onLocationReceived: (Double, Double) -> Unit
+) {
+    fusedLocationClient.getCurrentLocation(
+        Priority.PRIORITY_HIGH_ACCURACY,
+        null
+    ).addOnSuccessListener { location ->
+        if (location != null) {
+            onLocationReceived(location.latitude, location.longitude)
         }
     }
 }
 
-private fun sendWhatsAppMessage(context: Context, phone: String, message: String) {
-    try {
-        // Ensure phone number is in international format without '+' or spaces
-        val formattedPhone = phone.replace("+", "").replace(" ", "")
-        val uri = Uri.parse("https://wa.me/$formattedPhone?text=${Uri.encode(message)}")
-
-        val intent = Intent(Intent.ACTION_VIEW, uri)
-        intent.setPackage("com.whatsapp") // Force open in WhatsApp
-
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        Toast.makeText(context, "O WhatsApp não está instalado.", Toast.LENGTH_SHORT).show()
-    } catch (e: Exception) {
-        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+fun calculateDistance(
+    lat1: Double, lon1: Double,
+    lat2: Double, lon2: Double
+): Float {
+    if (lat1 !in -90.0..90.0 || lat2 !in -90.0..90.0 ||
+        lon1 !in -180.0..180.0 || lon2 !in -180.0..180.0
+    ) {
+        throw IllegalArgumentException("Latitude must be between -90 and 90, longitude between -180 and 180.")
     }
+
+    val startPoint = Location("start").apply {
+        latitude = lat1
+        longitude = lon1
+    }
+
+    val endPoint = Location("end").apply {
+        latitude = lat2
+        longitude = lon2
+    }
+    return (startPoint.distanceTo(endPoint))/1000 // retorna distancia em km
 }
 
-
-
-
+fun abrirGoogleMaps(address: String, context: Context) {
+    val gmmIntentUri = Uri.parse("geo:0,0?q=${Uri.encode(address)}")
+    val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+    mapIntent.setPackage("com.google.android.apps.maps")
+    context.startActivity(mapIntent)
+}

@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val appContainer = (application as DREgoApplication).container
+
         setContent {
             val widthSizeClass = calculateWindowSizeClass(this).widthSizeClass
             DREGoApp( widthSizeClass)

@@ -34,10 +34,6 @@ import com.gtoretti.drego.ui.hospedagem.HospedagemScreen
 import com.gtoretti.drego.ui.lazer.LazerScreen
 
 
-
-
-const val POST_ID = "postId"
-
 @Composable
 fun DREGoAppNavGraph(
     isExpandedScreen: Boolean,
