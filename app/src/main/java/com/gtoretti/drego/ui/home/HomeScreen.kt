@@ -190,9 +190,11 @@ private fun HomeScreenContent(
 ) {
     val latitudeAtual = remember { mutableDoubleStateOf(0.0) }
     val longitudeAtual = remember { mutableDoubleStateOf(0.0) }
-    val locais = remember { mutableStateOf<List<Local>>(ArrayList<Local>()) }
+    val locaisJson = remember { mutableStateOf<List<LocalJson>>(ArrayList<LocalJson>()) }
 
-    CarregarPosicaoGPSAtualELocais(latitudeAtual,longitudeAtual,locais)
+    CarregarPosicaoGPSAtualELocais(latitudeAtual,longitudeAtual,locaisJson)
+
+    val locais = calcularDistancias(latitudeAtual.doubleValue,longitudeAtual.doubleValue,locaisJson.value)
 
     Column(modifier) {
             HorizontalDivider(
@@ -230,12 +232,12 @@ private fun HomeScreenContent(
                 Spacer(Modifier.height(30.dp))
 
                 //enquanto estiver carregando posição atual de GPS e buscando lista de locais na nuvem, exibe animação de loading.
-                if (locais.value.isEmpty() || (latitudeAtual.value==0.0 && longitudeAtual.value==0.0)) {
+                if (locaisJson.value.isEmpty() || (latitudeAtual.value==0.0 && longitudeAtual.value==0.0)) {
                     LoadingScreen()
                 } else {
-                    //se ja tiver carregado posição atual de GPS e lista de locais, exibe cada local da lista.
-                    locais.value.forEach { local ->
-                        ExibirCadaLocal(local, latitudeAtual.value, longitudeAtual.value)
+                    //se ja tiver carregado posição atual de GPS e lista de locais, exibe cada local da lista, ordenado pela distancia.
+                    locais.sortedBy { it.distancia }.forEach { local ->
+                        ExibirCadaLocal(local)
                     }
                 }
                 //fim da lista de locais.
@@ -254,9 +256,7 @@ private fun HomeScreenContent(
 
 
 @Composable
-fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double){
-
-    val distancia = calculateDistance(local.latitude,local.longitude,latitudeAtual,longitudeAtual)
+fun ExibirCadaLocal(local: Local){
 
     Row(
         modifier = Modifier
@@ -269,16 +269,15 @@ fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double)
         Text(
             modifier = Modifier
                 .fillMaxWidth(0.6f),
-            text = local.nome,
+            text = local.localJson.nome,
             fontSize = 18.sp,
             color = Color.Red, // Set text color
             fontWeight = FontWeight.Bold
         )
 
-
         Text(
             modifier = Modifier,
-            text = distancia.toBigDecimal().setScale(2, RoundingMode.UP).toString().replace(".", ",") + " Km",
+            text = local.distancia.toBigDecimal().setScale(2, RoundingMode.UP).toString().replace(".", ",") + " Km",
             fontSize = 15.sp,
         )
 
@@ -288,7 +287,7 @@ fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double)
             modifier = Modifier.padding(5.dp),
             onClick =
                 {
-                    abrirGoogleMaps(local.nome,context)
+                    abrirGoogleMaps(local.localJson.nome,context)
                 }
         ) {
             Icon(
@@ -309,15 +308,13 @@ fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double)
         horizontalArrangement = Arrangement.Center
     ) {
         AsyncImage(
-            model = local.image,
-            contentDescription = local.nome,
+            model = local.localJson.image,
+            contentDescription = local.localJson.nome,
             modifier = Modifier
                 .size(300.dp)
                 .padding(all = 1.dp)
         )
     }
-
-
 
     Row(
         modifier = Modifier
@@ -329,7 +326,7 @@ fun ExibirCadaLocal(local: Local, latitudeAtual: Double, longitudeAtual: Double)
         Text(
             modifier = Modifier
                 .fillMaxWidth(),
-            text = local.descricao,
+            text = local.localJson.descricao,
             fontSize = 15.sp,
         )
     }
@@ -385,7 +382,7 @@ fun sendMail(context: Context,email: String, assunto: String, texto: String){
 }
 
 @Serializable
-data class Local(
+data class LocalJson(
     val latitude: Double,
     val longitude: Double,
     val nome: String,
@@ -393,6 +390,11 @@ data class Local(
     val descricao: String,
 )
 
+@Serializable
+data class Local(
+    val localJson: LocalJson,
+    val distancia: Float,
+)
 
 @Composable
 fun LoadingScreen() {
@@ -406,8 +408,8 @@ fun LoadingScreen() {
 
 
 
-suspend fun carregarLocais(permissionLauncher:  ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>) : List<Local> {
-    var lista = ArrayList<Local>()
+suspend fun carregarLocais(permissionLauncher:  ManagedActivityResultLauncher<Array<String>, Map<String, @JvmSuppressWildcards Boolean>>) : List<LocalJson> {
+    var lista = ArrayList<LocalJson>()
 
     //inicia GPS antes de procurar lista de locais na nuvem.
     permissionLauncher.launch(
@@ -430,8 +432,8 @@ suspend fun carregarLocais(permissionLauncher:  ManagedActivityResultLauncher<Ar
 
         val data: String = client.get(uri).body()
         val json = Json { ignoreUnknownKeys = true }
-        val decoded = json.decodeFromString<List<Local>>(data)
-        lista = ArrayList<Local>(decoded)
+        val decoded = json.decodeFromString<List<LocalJson>>(data)
+        lista = ArrayList<LocalJson>(decoded)
     } catch (e: Exception) {
         Log.d("getLocals() load error: ",e.message!!)
     }
@@ -441,7 +443,7 @@ suspend fun carregarLocais(permissionLauncher:  ManagedActivityResultLauncher<Ar
 
 @SuppressLint("CoroutineCreationDuringComposition")
 @Composable
-fun CarregarPosicaoGPSAtualELocais(latitudeAtual: MutableState<Double>, longitudeAtual: MutableState<Double>, locais: MutableState<List<Local>>){
+fun CarregarPosicaoGPSAtualELocais(latitudeAtual: MutableState<Double>, longitudeAtual: MutableState<Double>, locais: MutableState<List<LocalJson>>){
     val context = LocalContext.current
     var fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
@@ -465,6 +467,17 @@ fun CarregarPosicaoGPSAtualELocais(latitudeAtual: MutableState<Double>, longitud
         locais.value = carregarLocais(permissionLauncher)
     }
 }
+
+fun calcularDistancias(latitudeAtual: Double, longitudeAtual: Double, locaisJson: List<LocalJson>): List<Local> {
+    val ret = ArrayList<Local>()
+
+    locaisJson.forEach { localJson->
+        val distancia = calculateDistance(localJson.latitude,localJson.longitude,latitudeAtual,longitudeAtual)
+        ret.add(Local(localJson,distancia))
+    }
+    return ret
+}
+
 
 @SuppressLint("MissingPermission") // We check permission before calling
 private fun getCurrentLocation(
