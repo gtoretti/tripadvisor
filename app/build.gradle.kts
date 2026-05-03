@@ -14,7 +14,7 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.gtoretti.drego"
+        applicationId = "com.gtoretti.viajasp"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -81,7 +81,7 @@ android {
             }
         }
     }
-    namespace = "com.gtoretti.drego"
+    namespace = "com.gtoretti.viajasp"
 }
 
 androidComponents {

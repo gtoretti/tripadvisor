@@ -53,7 +53,7 @@
             <category android:name="android.intent.category.BROWSABLE"/>
             <data
                 android:host="developer.android.com"
-                android:pathPrefix="/drego"
+                android:pathPrefix="/viajasp"
                 android:scheme="https" />
         </intent-filter>
 
