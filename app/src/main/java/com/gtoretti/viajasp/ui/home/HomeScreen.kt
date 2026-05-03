@@ -153,7 +153,7 @@ fun HomeScreen(
     snackbarHostState: SnackbarHostState,
 ) {
 
-    //exibe menu superior e título da página (Início).
+    //exibe menu superior e título da página (Viaja SP!).
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -257,11 +257,9 @@ private fun HomeScreenContent(
                 .fillMaxWidth()
                 .fillMaxHeight(1.0f)
                 .padding(horizontal = 1.dp)
-            //.verticalScroll(rememberScrollState()),
         ) {
 
             // inicio da tela: Cabeçalho
-
             Spacer(Modifier.height(10.dp))
 
             Text(
@@ -275,8 +273,6 @@ private fun HomeScreenContent(
             )
 
             Spacer(Modifier.height(10.dp))
-
-
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             )
@@ -310,18 +306,7 @@ private fun HomeScreenContent(
             }
 
         }
-        //inicio rodapé da tela.
 
-        //HorizontalDivider(
-        //    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-       // )
-        //Spacer(Modifier.height(10.dp))
-
-
-        //DadosParaContato()
-
-        //Spacer(Modifier.height(30.dp))
-        // fim da tela
     }
 }
 
