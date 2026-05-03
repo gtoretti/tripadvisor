@@ -101,6 +101,7 @@ import androidx.compose.ui.text.withStyle
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 import com.gtoretti.viajasp.R
 import kotlinx.coroutines.launch
@@ -346,21 +347,6 @@ fun ExibirCadaLocal(context: Context, local: Local){
         )
     }
 
-
-    var imageBitmap = remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-
-    if (local.localJson.image.isNotEmpty()){
-        try {
-            context.assets.open(local.localJson.image).use { inputStream ->
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                imageBitmap.value = bitmap.asImageBitmap()
-            }
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-    }
-
-
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -369,43 +355,50 @@ fun ExibirCadaLocal(context: Context, local: Local){
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         if (local.localJson.image.isNotEmpty()){
-            imageBitmap.value.let {
-                Image(
-                    bitmap = it!!,
-                    contentDescription = local.localJson.nome,
-                    modifier = Modifier
-                        .size(100.dp)
-                        .fillMaxHeight()
-                        .aspectRatio(1f) // Keep square ratio (adjust as needed)
-                        .padding(1.dp),
-                    contentScale = ContentScale.Fit
 
-                )
-            }
+            AsyncImage(
+                model = "file:///android_asset/"+local.localJson.image, // Coil can take a File directly
+                contentDescription = local.localJson.nome,
+                modifier = Modifier
+                    .size(250.dp)
+                    .fillMaxHeight()
+                    .aspectRatio(1f) // Keep square ratio (adjust as needed)
+                    .padding(1.dp),
+                contentScale = ContentScale.Fit
+            )
         }
 
 
-        Text(
-            modifier = Modifier,
-            text = local.distancia.toBigDecimal().setScale(2, RoundingMode.UP).toString().replace(".", ",") + " km",
-            fontSize = 15.sp,
-        )
-
-        //botao Google Maps
-        val context = LocalContext.current
-        TextButton(
-            modifier = Modifier.padding(5.dp),
-            onClick =
-                {
-                    abrirGoogleMaps(local.localJson.nome,context)
-                }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
         ) {
-            Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.location_on_24px),
-                contentDescription = "Maps",
-                modifier = Modifier
-                    .padding(2.dp)
-                    .size(20.dp)
+
+
+            //botao Google Maps
+            val context = LocalContext.current
+            TextButton(
+                modifier = Modifier.padding(5.dp),
+                onClick =
+                    {
+                        abrirGoogleMaps(local.localJson.nome,context)
+                    }
+            ) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.location_on_24px),
+                    contentDescription = "Maps",
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .size(20.dp)
+                )
+            }
+
+            Text(
+                modifier = Modifier,
+                text = local.distancia.toBigDecimal().setScale(2, RoundingMode.UP).toString().replace(".", ",") + " km",
+                fontSize = 15.sp,
             )
         }
 
